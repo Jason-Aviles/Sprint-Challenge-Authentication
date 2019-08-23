@@ -1,11 +1,61 @@
 const router = require('express').Router();
+const db = require('./auth-model');
+const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
+const secret = require('../secrets/secret')
+
 
 router.post('/register', (req, res) => {
-  // implement registration
+const creds = req.body
+const hash = bcrypt.hashSync(creds.password,14)
+creds.password = hash
+return db.add(creds).then(
+  user=>{
+    res.status(201).json(user)
+  }
+)
+.catch(error=>{
+  res.status(500).json({message: 'failed to add user'})
+})
 });
 
-router.post('/login', (req, res) => {
-  // implement login
-});
+router.post('/login', (req, res)=>{
+  let { password, username} = req.body
+  db.findBy({username})
+  .first()//takes first item out of object
+  .then(user =>{
+      if (user && bcrypt.compareSync(password, user.password)){
+  const token = generateToken(user)
+  
+          res.status(200).json({message: `Hello ${user.username}`,token})
+      } else{
+          res.status(401).json({message: 'invalid login info'})
+      }
+  }).catch(error=>{
+      res.status(500).json({message: 'you messed up, login failed'})
+  })
+  })
+  
+
+
+
+
+function generateToken(user) {
+  const payload={
+      subject:user.id,
+      username:user.username
+  }
+  
+  const option={
+      expiresIn:'8h'
+  }
+
+  return jwt.sign(payload,secret.jwtSecret,option)
+}
+
+
+
+
+
 
 module.exports = router;
